@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: taskmanagementservice
+spec:
+  selector:
+    matchLabels:
+      app: taskmanagementservice
+  template:
+    metadata:
+      labels:
+        app: taskmanagementservice
+    spec:
+      containers:
+        - name: taskmanagementservice
+          image: jonathan12352/msassessmenttaskmanagementservice:1.0.0
+          env:
+            - name: RABBITMQ_HOST
+              value: "rabbitmq"
+            - name: RABBITMQ_PORT
+              value: "5672"
+---
+# Service Exposes your Deployments Externally
+apiVersion: v1
+kind: Service
+metadata:
+  name: taskmanagementservice
+spec:
+  type: NodePort
+  selector:
+    app: taskmanagementservice
+  ports:
+    - port: 80
+      targetPort: 5000
+      nodePort: 31290

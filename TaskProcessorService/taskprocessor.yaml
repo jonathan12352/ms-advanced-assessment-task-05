@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: task-processor-service
+spec:
+  selector:
+    matchLabels:
+      run: task-processor-service
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        run: task-processor-service
+    spec:
+      containers:
+      - name: task-processor-service
+        image: jonathan12352/msassessmenttaskprocessorservice:1.0.0
+        env: 
+         - name: RABBITMQ_HOST
+           value: "rabbitmq"
+         - name: RABBITMQ_PORT
+           value: "5672"
+        ports:
+        - containerPort: 5000
+        resources:
+          limits:
+            cpu: 500m
+          requests:
+            cpu: 200m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: task-processor-service
+  labels:
+    run: task-processor-service
+spec:
+  ports:
+  - port: 5000
+  selector:
+    run: task-processor-service
