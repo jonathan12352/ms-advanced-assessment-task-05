@@ -12,6 +12,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Cors;
+using TaskService.Controllers;
 
 namespace TaskService
 {
@@ -38,6 +39,8 @@ namespace TaskService
             services.AddDbContext<TaskContext>(option => {
                 option.UseInMemoryDatabase("Task");
             });
+
+            services.AddHostedService<TaskProcessedConsumer>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -50,7 +53,6 @@ namespace TaskService
 
             app.UseSwagger();
             app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "TaskService v1"));
-
 
             app.UseRouting();
             app.UseCors(builder =>

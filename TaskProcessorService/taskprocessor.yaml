@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: task-processor-service
-        image: jonathan12352/msassessmenttaskprocessorservice:1.0.0
+        image: jonathan12352/msassessmenttaskprocessorservice:2.0.0
         env: 
          - name: RABBITMQ_HOST
            value: "rabbitmq"

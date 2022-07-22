@@ -1,26 +1,23 @@
 ﻿using Microsoft.Extensions.Hosting;
+using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using RabbitMQ.Client;
-using Microsoft.Extensions.Logging;
-using System.Threading;
-using RabbitMQ.Client.Events;
-using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using System.Text;
 using System.Text.Json;
+using System.Threading;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace TaskProcessorService.Controllers
+namespace TaskService.Controllers
 {
-    public class TaskConsumer: BackgroundService
+    public class TaskProcessedConsumer: BackgroundService
     {
         private IConnection _connection;
         private IModel _channel;
 
         private TaskContext _context;
 
-        public TaskConsumer(IServiceProvider serviceProvider)
+        public TaskProcessedConsumer(IServiceProvider serviceProvider)
         {
             _context = serviceProvider.CreateScope().ServiceProvider.GetRequiredService<TaskContext>();
             InitRabbitMQ();
@@ -44,12 +41,12 @@ namespace TaskProcessorService.Controllers
             // create channel  
             _channel = _connection.CreateModel();
 
-            _channel.QueueDeclare("tasks", false, false, false, null);
+            _channel.QueueDeclare("task-processed", false, false, false, null);
 
             _connection.ConnectionShutdown += RabbitMQ_ConnectionShutdown;
         }
 
-        protected override Task ExecuteAsync(CancellationToken stoppingToken)
+        protected override System.Threading.Tasks.Task ExecuteAsync(CancellationToken stoppingToken)
         {
             stoppingToken.ThrowIfCancellationRequested();
 
@@ -69,23 +66,20 @@ namespace TaskProcessorService.Controllers
             consumer.Unregistered += OnConsumerUnregistered;
             consumer.ConsumerCancelled += OnConsumerConsumerCancelled;
 
-            _channel.BasicConsume("tasks", false, consumer);
-            return Task.CompletedTask;
+            _channel.BasicConsume("task-processed", false, consumer);
+            return System.Threading.Tasks.Task.CompletedTask;
         }
 
         private async void HandleMessage(string content)
         {
-            var task = JsonSerializer.Deserialize<Tasks>(content);
+            var task = JsonSerializer.Deserialize<Task>(content);
 
-            Console.WriteLine($"consumer received {content}");
+            Console.WriteLine($"task processed consumer received {content}");
 
-            task = ProcessTaskSuccessfully(task);
-
-            _context.Tasks.Add(task);
+            _context.Entry(task).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
 
             try
             {
-                SendTaskProcessedResponseToRabbitMQ(task);
                 await _context.SaveChangesAsync();
             }
             catch (Exception e)
@@ -94,46 +88,6 @@ namespace TaskProcessorService.Controllers
                 throw;
             }
         }
-
-        private Tasks ProcessTaskSuccessfully(Tasks task)
-        {
-            task.TaskStatus = TaskStatus.COMPLETED;
-            return task;
-        }
-
-        private void SendTaskProcessedResponseToRabbitMQ(Tasks task)
-        {
-            var queueName = "task-processed";
-
-            var factory = new ConnectionFactory()
-            {
-                HostName = Environment.GetEnvironmentVariable("RABBITMQ_HOST"),
-                Port = Convert.ToInt32(Environment.GetEnvironmentVariable("RABBITMQ_PORT"))
-            };
-
-            //Console.WriteLine(JsonConvert.ToString(taskMessage));
-
-            using (var connection = factory.CreateConnection())
-            using (var channel = connection.CreateModel())
-            {
-                channel.QueueDeclare(queue: queueName,
-                                     durable: false,
-                                     exclusive: false,
-                                     autoDelete: false,
-                                     arguments: null);
-
-                string message = JsonSerializer.Serialize<Tasks>(task);
-
-                var body = Encoding.UTF8.GetBytes(message);
-
-                channel.BasicPublish(exchange: "",
-                                     routingKey: queueName,
-                                     basicProperties: null,
-                                     body: body);
-
-            }
-        }
-
         private void OnConsumerConsumerCancelled(object sender, ConsumerEventArgs e) { }
         private void OnConsumerUnregistered(object sender, ConsumerEventArgs e) { }
         private void OnConsumerRegistered(object sender, ConsumerEventArgs e) { }

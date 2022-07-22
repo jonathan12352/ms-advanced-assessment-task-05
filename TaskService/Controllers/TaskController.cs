@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using System.Text;
 using RabbitMQ.Client;
+using Microsoft.AspNetCore.Http;
 
 namespace TaskService.Controllers
 {
@@ -43,7 +44,12 @@ namespace TaskService.Controllers
                 Port = Convert.ToInt32(Environment.GetEnvironmentVariable("RABBITMQ_PORT"))
             };
 
-            //Console.WriteLine(JsonConvert.ToString(taskMessage));
+            taskMessage = await TryAddTaskToDB(taskMessage);
+
+            if(taskMessage == null)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError);
+            }
 
             using (var connection = factory.CreateConnection())
             using (var channel = connection.CreateModel())
@@ -65,6 +71,22 @@ namespace TaskService.Controllers
 
                 return Ok();
             }  
+        }
+
+        private async Task<TaskService.Task> TryAddTaskToDB(Task task)
+        {
+            _context.Tasks.Add(task);
+
+            try
+            {
+                await _context.SaveChangesAsync();
+                return task;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                return null;
+            }
         }
     }
 }

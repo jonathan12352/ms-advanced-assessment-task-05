@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
         - name: taskmanagementservice
-          image: jonathan12352/msassessmenttaskmanagementservice:1.0.0
+          image: jonathan12352/msassessmenttaskmanagementservice:2.0.0
           env:
             - name: RABBITMQ_HOST
               value: "rabbitmq"
